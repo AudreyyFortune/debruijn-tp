@@ -75,5 +75,49 @@ def main():
     # Get arguments
     args = get_arguments()
 
+def read_fastq(file):
+	"""
+	Read fastq file.
+	input : fastq
+	output : generateur de sequence
+	"""
+	with open(file) as fichier:
+		for line in enumerate(fichier):
+			yield(next(fichier).strip()) # on saute la ligne commençant par "@".
+			next(fichier) # on saute la ligne avec les 'JJJJ'.
+			next(fichier) # on saute la ligne commençant par "@".
+
+
+def cut_kmer(seq, taille):
+	"""
+	Cut a sequence in k-mers.
+	input : sequence, k-size
+	output : generateur de k-mers
+	"""
+	for n in range(len(seq) - taille + 1):  
+		yield(seq[n:n+taille])
+
+
+def build_kmer_dict(file, taille):
+	"""
+	"""
+	dico = {}
+	for seq in read_fastq(file):
+		for kmer in cut_kmer(seq, taille):
+			if kmer not in dico:
+				dico[kmer] = 0
+			dico[kmer] += 1
+	print(dico)
+	return(dico)
+
+
+
 if __name__ == '__main__':
-    main()
+	main()
+	#for i in read_fastq("../data/eva71_two_reads.fq"):
+	#	print(i)
+	#	for j in cut_kmer(i,4):
+	#		print(j)
+	#print(build_kmer_dict("../data/eva71_two_reads.fq",4))
+	args = get_arguments()
+	build_kmer_dict(args.fastq_file, args.kmer_size)
