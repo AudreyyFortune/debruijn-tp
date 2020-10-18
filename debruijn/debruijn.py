@@ -386,7 +386,7 @@ def main():
     # De Bruijn's graph
     graphe = build_graph(dico_kmer)
     # Simplification of De Bruijn's graph
-    #graphe = simplify_bubbles(graphe)
+    graphe = simplify_bubbles(graphe)
     # Starting nodes of graph
     start_node = solve_entry_tips(graphe, get_starting_nodes(graphe))
     # Sinking nodes of graph
