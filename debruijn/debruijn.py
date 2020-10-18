@@ -35,6 +35,7 @@ __maintainer__ = "Fortune Audrey"
 __email__ = "audefortune@free.fr"
 __status__ = "Developpement"
 
+
 def isfile(path):
     """Check if path is an existing file.
       :Parameters:
@@ -141,8 +142,8 @@ def get_starting_nodes(G):
 	"""
 	Gives entry nodes of the graph.
 	Parameters:
-		input : graph
-		output : list of all entry nodes
+		input: G (graph)
+		return: list of all entry nodes
 	"""
 	starting_node = []
 	for node in G.nodes:
@@ -155,8 +156,8 @@ def get_sink_nodes(G):
 	"""
 	Gives output nodes of the graph.
 	Parameters:
-		input : graph
-		output : list of all exit nodes
+		input: G (graph)
+		return: list of all exit nodes
 	"""
 	sink_node = []
 	for node in G.nodes:
@@ -169,10 +170,10 @@ def get_contigs(G, starting_node, sink_node):
 	"""
 	Determine each path of the graph between a starting node and a strating node, named "contig".
 	Parameters:
-		input: - graph
+		input: - G (graph)
 			   - starting_node(list of all entry nodes)
 			   - sink_node(list of all exit nodes)
-		output: list of tupple containing contig and contig size
+		return: list of tupple containing contig and contig size
 	"""
 	contigs = []
 	for start_n in starting_node:
@@ -201,46 +202,174 @@ def save_contigs(contigs, output):
 		for index, element in enumerate(contigs):
 			filout.write(">contig_" + str(index) + " len=" + str(element[1]) + "\n")
 			filout.write(fill(element[0]) + "\n")
-
-
     
 
 #==============================================================
 # Part 3
 #==============================================================
 
-def std():
+def std(valeurs):
 	"""
+	Calculate the standart deviation.
+	Parameters: valeur(list of values)
+    Return: the standard deviation between all values
 	"""
-	pass
+	stdeviation = statistics.stdev(valeurs)
+	return stdeviation
+
+	
+def path_average_weight(G, chemin):
+    """
+    Calculate the average weight of the path.
+	Parameters: - G (graph)
+				- chemin (a path)
+	Return: average of weight of all edges in the path
+    """
+    poids = 0
+    for w in chemin: # out_degree -> retourne le degre d'excentration d'un noeud (ou plusieurs).
+        poids += G.out_degree(chemin, weight = "weight")
+    average_w = poids / (len(chemin) - 1)
+    return average_w
+  
+
+def remove_paths(G, liste_chemin, delete_entry_node, delete_sink_node):
+	"""
+	Removes paths from the graph.
+	Parameters: - G (graph)
+				- liste_chemin (a list of paths to remove)
+				- delete_entry_node (boolean, to remove the entry node)
+				- delete_sink_node (boolean, to remove the exit node)
+	Return: a graph without the unwanted paths
+	"""
+	for chemin in liste_chemin: # remove_nodes_from -> supprime de multiples noeuds.
+		G.remove_nodes_from(chemin[1:-1]) # chemin[entry:sink]
+		if delete_entry_node: # remove_node -> supprime le noeud et tous les liens adjacents. 
+			G.remove_node(chemin[0]) # entry = 0
+		if delete_sink_node:
+			G.remove_node(chemin[-1])
+	return G	
+	
+
+def select_best_path(G, liste_chemin, length_chemin, weight_chemin, 
+					delete_entry_node = False, delete_sink_node = False):
+	"""
+	Select the best part of the graph.
+	Parameters: - G (graph)
+				- liste_chemin (a list of paths to remove)
+				- length_chemin (a list of length's paths)
+				- weight_chemin (a list of weight's paths)
+				- delete_entry_node (boolean FALSE, to remove the entry node)
+				- delete_sink_node (boolean FALSE, to remove the exit node)
+	Return: a cleaned graph of undesirable paths		
+	"""
+	wmax_chemin = []
+	wmax_weight = []
+	wmax_length = []
+	lmax_chemin = []
+	lmax_weight = []
+	lmax_lenght = []
+	best_chemin = []
+	for i in range(0, len(liste_chemin)):
+		if weight_chemin[i] == max(weight_chemin):
+			wmax_chemin.append(liste_chemin[i])
+			wmax_weight.append(weight_chemin[i])
+			wmax_length.append(length_chemin[i])
+	for j in range(0, len(wmax_chemin)):
+		if wmax_length[i] == max(wmax_length):
+			lmax_chemin.append(wmax_chemin[i])
+			lmax_weight.append(wmax_weight[i])
+			lmax_lenght.append(wmax_length[i])
+	for chemin in liste_chemin:
+		if chemin not in lmax_chemin:
+			best_chemin.append(chemin)
+	G = remove_paths(G, best_chemin, delete_entry_node, delete_sink_node)
+	return(G)
+			
+
+def solve_bubble(G, ancestor, descendant):
+	"""
+	Remove a bubble in the graph.
+	Parameters: - G (graph)
+				- ancestor (entry node of the bubble)
+				- descendant (exit node of the bubble)
+	Return: a cleaned graph of the bubble between ancestor_node and descendant_node
+	"""
+	bubble_chemin = []
+	bubble_lenght = []
+	bubble_weight = []
+	for chemin in nx.all_simple_paths(G, ancestor, descendant): # all_simple_paths -> genere tous les chemins simples dans le graphe.
+		bubble_chemin.append(chemin)
+		bubble_lenght.append(len(chemin))
+		bubble_weight.append(path_average_weight(G, chemin))
+	G = select_best_path(G, bubble_chemin, bubble_lenght, bubble_weight, delete_entry_node = False, delete_sink_node = False)
+	return(G)
+	
+
+def simplify_bubbles(G):
+	"""
+	Remove all bubbles in the graph.
+	Parameters: - G (graph)
+	Return: a graph without bubble
+	"""
+	delete_node = []
+	for i in G.nodes:
+		pred = list(G.predecessors(i))
+		if len(pred) > 1: # >=2
+			anc = nx.lowest_commun_ancestor(G, pred[0], pred[1]) # le plus petit ancetre commum
+			delete_node.append(anc, i)
+	for couple in delete_node:
+		G = solve_bubble(G, couple[0], couple[1])
+	return(G)
 
 
-def path_average_weight():
+def solve_entry_tips(G, starting_node):
 	"""
+	Removes all entry tips.
+	Parameters: - G (graph)
+				- starting_node (list of all entry nodes)
+	Return: a graph without undesirable input path
 	"""
-	pass
+	ancestor = []
+	liste_chemin = []
+	length_chemin = [] 
+	weight_chemin = []
+	for node in starting_node:
+		 for j in nx.descendants(G, node):
+		 	if len(G.pred[j]) > 1 and j not in ancestor:
+		 		ancestor.append(j)
+	for node in starting_node:
+		for j in ancestor:
+			for chemin in nx.all_simple_paths(G, node, j):
+				liste_chemin.append(chemin)
+				length_chemin.append(chemin)
+				weight_chemin.append(path_average_weight(G,chemin))
+	G = select_best_path(G, liste_chemin, length_chemin, weight_chemin, delete_entry_node = True, delete_sink_node = False)
+	return(G)
 	
-	
-def remove_paths():
-	"""
-	"""
-	pass
-	
-def select_best_path():
-	"""
-	"""
-	pass
-	
-def solve_bubble():
-	"""
-	"""
-	pass
 
-def simplify_bubbles():
+def  solve_out_tips(G, sink_node):
 	"""
+	Removes all exit tips.
+	Parameters: - G (graph)
+				- sink_node (list of all exit nodes)
+	Return: a graph without undesirable output path
 	"""
-	pass
-
+	descendant = []
+	liste_chemin = []
+	length_chemin = [] 
+	weight_chemin = []
+	for node in sink_node:
+		 for j in nx.ancestors(G, node):
+		 	if len(G.succ[j]) > 1 and j not in descendant:
+		 		descendant.append(j)
+	for node in sink_node:
+		for j in descendant:
+			for chemin in nx.all_simple_paths(G, node, j):
+				liste_chemin.append(chemin)
+				length_chemin.append(chemin)
+				weight_chemin.append(path_average_weight(G,chemin))
+	G = select_best_path(G, liste_chemin, length_chemin, weight_chemin, delete_entry_node = False, delete_sink_node = True)
+	return(G)
 
 
 #==============================================================
@@ -254,17 +383,19 @@ def main():
     args = get_arguments()
     # K-mers dictionnary
     dico_kmer = build_kmer_dict(args.fastq_file, args.kmer_size)
-    # Graph de Bruijn 
+    # De Bruijn's graph
     graphe = build_graph(dico_kmer)
+    # Simplification of De Bruijn's graph
+    #graphe = simplify_bubbles(graphe)
     # Starting nodes of graph
-    start_node = get_starting_nodes(graphe)
+    start_node = solve_entry_tips(graphe, get_starting_nodes(graphe))
     # Sinking nodes of graph
-    exit_node = get_sink_nodes(graphe)
+    exit_node = solve_out_tips(graphe, get_sink_nodes(graphe))
     # Get contigs
     contigs = get_contigs(graphe, start_node, exit_node)
     # Save contigs
     save_contigs(contigs, args.output_file)
-    
+   
     
 if __name__ == '__main__':
 	main()
